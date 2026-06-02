@@ -1,0 +1,14 @@
+apscheduler>=3.10.4
+herbie-data>=2025.1.0
+meteostat>=1.6.8
+numpy>=1.26.4
+pandas>=2.2.2
+py-clob-client>=0.33.0
+python-dotenv>=1.0.1
+python-metar>=1.4.0
+python-telegram-bot>=21.0
+pytz>=2024.1
+PyYAML>=6.0.1
+requests>=2.32.3
+scikit-learn>=1.4.2
+scipy>=1.13.0

@@ -1,0 +1,173 @@
+runtime:
+  timezone: UTC
+  scan_interval_seconds: 180
+  profit_scan_interval_seconds: 300
+  min_alert_cooldown_minutes: 45
+  dry_run: true
+  manual_trading: true
+  log_alerts: true
+  database_path: data/weather_quant.db
+  log_path: logs/weather_quant.log
+
+polymarket:
+  gamma_api: https://gamma-api.polymarket.com
+  clob_api: https://clob.polymarket.com
+  weather_query_terms:
+    - highest temperature
+    - daily high temperature
+    - temperature in
+  min_liquidity_usd: 50
+  max_yes_price_for_longshot: 0.10
+  min_longshot_edge_multiple: 2.0
+  min_target_payout_multiple: 10.0
+  near_certainty_min_prob: 0.93
+  near_certainty_min_price: 0.86
+  near_certainty_max_price: 0.99
+
+strategy:
+  micro_longshot:
+    enabled: true
+    min_model_probability: 0.045
+    price_floor: 0.02
+    price_ceiling: 0.10
+    min_expected_value: 0.20
+  late_day_reversal:
+    enabled: true
+    window_start_hours_before_close: 8
+    window_end_hours_before_close: 0
+    min_reversal_score: 0.66
+    leader_min_price: 0.45
+  near_certainty:
+    enabled: true
+    min_model_probability: 0.94
+    min_edge: 0.025
+  profit_taking:
+    enabled: true
+    profit_percent_levels: [200, 400, 900]
+    de_risk_price: 0.70
+    exit_price: 0.90
+    stop_loss_price: 0.35
+    max_loss_percent: 55
+    hard_stop_price: 0.18
+
+cities:
+  - name: Lagos
+    slug_terms: [lagos]
+    station_id: DNMM
+    latitude: 6.57722
+    longitude: 3.32111
+    timezone: Africa/Lagos
+    preferred: true
+    volatility: high
+  - name: London
+    slug_terms: [london]
+    station_id: EGLC
+    latitude: 51.50528
+    longitude: 0.05528
+    timezone: Europe/London
+    preferred: true
+    volatility: high
+  - name: Seoul
+    slug_terms: [seoul]
+    station_id: RKSI
+    latitude: 37.46028
+    longitude: 126.44083
+    timezone: Asia/Seoul
+    preferred: true
+    volatility: medium
+  - name: Ankara
+    slug_terms: [ankara]
+    station_id: LTAC
+    latitude: 40.12806
+    longitude: 32.99500
+    timezone: Europe/Istanbul
+    preferred: true
+    volatility: high
+  - name: New York City
+    slug_terms: [new york, nyc]
+    station_id: KLGA
+    latitude: 40.77722
+    longitude: -73.87250
+    timezone: America/New_York
+    preferred: true
+    volatility: high
+  - name: Paris
+    slug_terms: [paris]
+    station_id: LFPB
+    latitude: 48.96944
+    longitude: 2.44111
+    timezone: Europe/Paris
+    preferred: true
+    volatility: medium
+  - name: Tokyo
+    slug_terms: [tokyo]
+    station_id: RJTT
+    latitude: 35.54944
+    longitude: 139.77972
+    timezone: Asia/Tokyo
+    preferred: true
+    volatility: medium
+  - name: Miami
+    slug_terms: [miami]
+    station_id: KMIA
+    latitude: 25.79528
+    longitude: -80.28750
+    timezone: America/New_York
+    preferred: true
+    volatility: high
+  - name: Chicago
+    slug_terms: [chicago]
+    station_id: KORD
+    latitude: 41.97861
+    longitude: -87.90472
+    timezone: America/Chicago
+    preferred: true
+    volatility: high
+  - name: Beijing
+    slug_terms: [beijing]
+    station_id: ZBAA
+    latitude: 40.08000
+    longitude: 116.58444
+    timezone: Asia/Shanghai
+    preferred: true
+    volatility: medium
+  - name: Shanghai
+    slug_terms: [shanghai]
+    station_id: ZSPD
+    latitude: 31.14333
+    longitude: 121.80528
+    timezone: Asia/Shanghai
+    preferred: true
+    volatility: medium
+  - name: Hong Kong
+    slug_terms: [hong kong]
+    station_id:
+    latitude: 22.30194
+    longitude: 114.17417
+    timezone: Asia/Hong_Kong
+    preferred: true
+    volatility: high
+  - name: Istanbul
+    slug_terms: [istanbul]
+    station_id: LTFM
+    latitude: 41.27487
+    longitude: 28.73214
+    timezone: Europe/Istanbul
+    preferred: true
+    volatility: high
+  - name: Madrid
+    slug_terms: [madrid]
+    station_id: LEMD
+    latitude: 40.49833
+    longitude: -3.56778
+    timezone: Europe/Madrid
+    preferred: true
+    volatility: medium
+  - name: Toronto
+    slug_terms: [toronto]
+    station_id: CYYZ
+    latitude: 43.67722
+    longitude: -79.63056
+    timezone: America/Toronto
+    preferred: true
+    volatility: high
