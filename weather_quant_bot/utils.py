@@ -48,3 +48,25 @@ def retry(times: int = 3, delay: float = 1.0, backoff: float = 2.0) -> Callable[
 
     return decorator
 
+
+def celsius_to_fahrenheit(celsius: float) -> float:
+    """Convert Celsius to Fahrenheit."""
+    return celsius * 9 / 5 + 32
+
+
+def format_temperature(celsius: float, is_us_city: bool) -> str:
+    """Format temperature with appropriate unit (F for US, C for non-US)."""
+    if is_us_city:
+        fahrenheit = celsius_to_fahrenheit(celsius)
+        return f"{fahrenheit:.1f}°F"
+    return f"{celsius:.1f}°C"
+
+
+def format_temp_range(low_c: float, high_c: float, is_us_city: bool) -> str:
+    """Format temperature range with appropriate unit."""
+    if is_us_city:
+        low_f = celsius_to_fahrenheit(low_c)
+        high_f = celsius_to_fahrenheit(high_c)
+        return f"{low_f:.1f}-{high_f:.1f}°F"
+    return f"{low_c:.1f}-{high_c:.1f}°C"
+

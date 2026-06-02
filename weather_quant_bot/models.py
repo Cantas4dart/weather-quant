@@ -15,6 +15,8 @@ class CityConfig:
     timezone: str
     preferred: bool = True
     volatility: str = "medium"
+    is_us_city: bool = False
+    is_us_city: bool = False
 
 
 @dataclass

@@ -9,6 +9,7 @@ from .gp_calibrator import GPCalibrator
 from .models import CityConfig, MarketOutcome, StrategySignal
 from .polymarket import PolymarketClient, parse_temperature_bucket
 from .reversal_detector import LateDayReversalDetector
+from .utils import format_temperature, format_temp_range
 
 log = logging.getLogger(__name__)
 
@@ -33,23 +34,28 @@ class WeatherMarketAnalyzer:
     def analyze_city(self, city: CityConfig) -> list[StrategySignal]:
         log.info("scan city=%s station=%s started", city.name, city.station_id or "lat/lon")
         snapshot = self.collector.collect(city)
+        current_temp = format_temperature(snapshot.current_temp_c, city.is_us_city) if snapshot.current_temp_c is not None else "n/a"
+        max_temp = format_temperature(snapshot.max_so_far_c, city.is_us_city) if snapshot.max_so_far_c is not None else "n/a"
         log.info(
             "scan city=%s obs source=%s current=%s max_so_far=%s taf=%s",
             city.name,
             snapshot.source,
-            snapshot.current_temp_c,
-            snapshot.max_so_far_c,
+            current_temp,
+            max_temp,
             "yes" if snapshot.taf_raw else "no",
         )
         forecast = self.gp.predict(city, snapshot, date.today())
+        mean_high = format_temperature(forecast.mean_high_c, city.is_us_city)
+        temp_range = format_temp_range(forecast.p10_c, forecast.p90_c, city.is_us_city)
+        sigma = f"{forecast.sigma_c * (9 / 5):.2f}°{'F' if city.is_us_city else 'C'}"
+        bias = format_temperature(forecast.bias_c, city.is_us_city)
         log.info(
-            "scan city=%s gp mean=%.2f sigma=%.2f p10=%.2f p90=%.2f bias=%+.2f",
+            "scan city=%s gp mean=%s range=%s sigma=%s bias=%s",
             city.name,
-            forecast.mean_high_c,
-            forecast.sigma_c,
-            forecast.p10_c,
-            forecast.p90_c,
-            forecast.bias_c,
+            mean_high,
+            temp_range,
+            sigma,
+            bias,
         )
         markets = self.polymarket.scan_weather_markets(
             city,
