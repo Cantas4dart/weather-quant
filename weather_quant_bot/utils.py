@@ -54,6 +54,11 @@ def celsius_to_fahrenheit(celsius: float) -> float:
     return celsius * 9 / 5 + 32
 
 
+def fahrenheit_to_celsius(fahrenheit: float) -> float:
+    """Convert Fahrenheit to Celsius."""
+    return (fahrenheit - 32) * 5 / 9
+
+
 def format_temperature(celsius: float, is_us_city: bool) -> str:
     """Format temperature with appropriate unit (F for US, C for non-US)."""
     if is_us_city:
