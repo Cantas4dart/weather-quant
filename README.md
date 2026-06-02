@@ -74,6 +74,7 @@ The bot polls current CLOB prices and logs:
 - Meteostat supports historical backfill.
 - Herbie is treated as an optional production hook for NOAA/NCEP model guidance.
 - Polymarket Gamma and CLOB endpoints scan active markets and prices.
+- **Temperature units:** US cities use Fahrenheit (°F), non-US cities use Celsius (°C). The bot auto-detects market temperature scales.
 
 ## Strategy Discipline
 

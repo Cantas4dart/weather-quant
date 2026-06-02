@@ -8,6 +8,7 @@ import requests
 from .db import BotDB
 from .models import StrategySignal
 from .profit_signal import ProfitSignal
+from .utils import format_temperature, format_temp_range
 
 log = logging.getLogger(__name__)
 
@@ -105,6 +106,7 @@ def format_signal(signal: StrategySignal) -> str:
     snap = signal.snapshot
     fc = signal.forecast
     market = signal.market
+    is_us = snap.city.is_us_city
     reasons = "\n".join(f"- {reason}" for reason in signal.reasons[:6])
     failures = "\n".join(f"- {reason}" for reason in signal.failure_modes[:4])
     confirmations = "\n".join(f"- {rule}" for rule in signal.confirmation_rules[:4])
@@ -112,16 +114,21 @@ def format_signal(signal: StrategySignal) -> str:
     station = snap.city.station_id or "lat/lon fallback"
     metar = snap.metar_raw or "No METAR; fallback sources active"
     taf = snap.taf_summary or "No TAF confirmation layer"
+    current_temp = format_temperature(snap.current_temp_c, is_us) if snap.current_temp_c is not None else 'n/a'
+    max_temp = format_temperature(snap.max_so_far_c, is_us) if snap.max_so_far_c is not None else 'n/a'
+    gp_high = format_temperature(fc.mean_high_c, is_us)
+    gp_range = format_temp_range(fc.p10_c, fc.p90_c, is_us)
+    gp_sigma = f"{fc.sigma_c * (9 / 5):.2f}°{'F' if is_us else 'C'}"
+    bias = format_temperature(fc.bias_c, is_us)
     return (
         f"<b>{signal.strategy}</b>\n"
         f"<b>{signal.recommendation}</b>\n\n"
         f"City: {signal.city_name}\n"
         f"Resolution station: {station}\n"
-        f"Current obs: {snap.current_temp_c if snap.current_temp_c is not None else 'n/a'}C | "
-        f"max so far {snap.max_so_far_c if snap.max_so_far_c is not None else 'n/a'}C\n"
+        f"Current obs: {current_temp} | max so far {max_temp}\n"
         f"METAR: <code>{metar}</code>\n"
         f"TAF: {taf}\n"
-        f"GP high: {fc.mean_high_c:.1f}C ({fc.p10_c:.1f}-{fc.p90_c:.1f}C), sigma {fc.sigma_c:.2f}, bias {fc.bias_c:+.2f}\n"
+        f"GP high: {gp_high} ({gp_range}), sigma {gp_sigma}, bias {bias}\n"
         f"Model prob: {signal.model_probability:.1%} | Market: {signal.implied_probability:.1%} | "
         f"Edge: {signal.edge:+.1%} | EV: {signal.expected_value:+.1%}\n\n"
         f"Why it works:\n{reasons}\n\n"

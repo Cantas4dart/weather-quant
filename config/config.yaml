@@ -91,6 +91,7 @@ cities:
     timezone: America/New_York
     preferred: true
     volatility: high
+    is_us_city: true
   - name: Paris
     slug_terms: [paris]
     station_id: LFPB
@@ -115,6 +116,7 @@ cities:
     timezone: America/New_York
     preferred: true
     volatility: high
+    is_us_city: true
   - name: Chicago
     slug_terms: [chicago]
     station_id: KORD
@@ -123,6 +125,7 @@ cities:
     timezone: America/Chicago
     preferred: true
     volatility: high
+    is_us_city: true
   - name: Beijing
     slug_terms: [beijing]
     station_id: ZBAA

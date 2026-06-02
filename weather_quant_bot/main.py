@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import signal
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from dotenv import load_dotenv
@@ -123,6 +124,15 @@ def main() -> None:
     )
     scheduler.add_job(poll_telegram_once, "interval", seconds=20, max_instances=1)
     log.info("weather quant bot started")
+    
+    def shutdown_handler(signum, frame):
+        log.info("received signal %s, shutting down gracefully...", signum)
+        scheduler.shutdown()
+        log.info("weather quant bot stopped")
+    
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    
     poll_telegram_once()
     scan_once()
     scan_exits_once()

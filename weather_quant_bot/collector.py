@@ -7,7 +7,7 @@ from typing import Any
 import requests
 
 from .models import CityConfig, WeatherSnapshot
-from .utils import retry
+from .utils import retry, fahrenheit_to_celsius
 
 log = logging.getLogger(__name__)
 
@@ -78,6 +78,7 @@ class WeatherCollector:
     @retry(times=3, delay=1.0)
     def fetch_open_meteo(self, city: CityConfig) -> dict[str, Any]:
         url = "https://api.open-meteo.com/v1/forecast"
+        temperature_unit = "fahrenheit" if city.is_us_city else "celsius"
         params = {
             "latitude": city.latitude,
             "longitude": city.longitude,
@@ -85,6 +86,7 @@ class WeatherCollector:
             "daily": "temperature_2m_max,temperature_2m_min",
             "timezone": city.timezone,
             "forecast_days": 2,
+            "temperature_unit": temperature_unit,
         }
         response = self.session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
@@ -118,8 +120,17 @@ class WeatherCollector:
             daily = om.get("daily", {})
             forecast_high = (daily.get("temperature_2m_max") or [None])[0]
             forecast_low = (daily.get("temperature_2m_min") or [None])[0]
+            # Convert F back to C for internal storage if US city
+            if city.is_us_city:
+                if forecast_high is not None:
+                    forecast_high = fahrenheit_to_celsius(forecast_high)
+                if forecast_low is not None:
+                    forecast_low = fahrenheit_to_celsius(forecast_low)
             hourly = om.get("hourly", {})
             temps = [t for t in hourly.get("temperature_2m", [])[:24] if t is not None]
+            # Convert F to C for internal storage if US city
+            if city.is_us_city:
+                temps = [fahrenheit_to_celsius(t) for t in temps]
             if temps:
                 candidates = ([max_so_far] if max_so_far is not None else []) + temps
                 max_so_far = max(candidates)
