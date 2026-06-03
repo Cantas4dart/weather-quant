@@ -6,18 +6,23 @@ from typing import Any
 
 import requests
 
+from .forecast_cache import ForecastCache
 from .models import CityConfig, WeatherSnapshot
 from .utils import retry, fahrenheit_to_celsius
 
 log = logging.getLogger(__name__)
 
+# Global forecast cache instance - shared across all collector instances
+_forecast_cache = ForecastCache()
+
 
 class WeatherCollector:
-    """Collects fast aviation observations first, then forecast fallbacks."""
+    """Collects fast aviation observations first, then forecast fallbacks with hourly caching."""
 
-    def __init__(self, timeout: int = 12) -> None:
+    def __init__(self, timeout: int = 12, forecast_cache: ForecastCache | None = None) -> None:
         self.session = requests.Session()
         self.timeout = timeout
+        self.forecast_cache = forecast_cache or _forecast_cache
 
     @retry(times=3, delay=0.7)
     def fetch_metar_raw(self, station_id: str) -> str | None:
@@ -114,9 +119,50 @@ class WeatherCollector:
         forecast_high = None
         forecast_low = None
         max_so_far = parsed["temp_c"]
-        try:
-            om = self.fetch_open_meteo(city)
-            details["open_meteo"] = om
+        
+        # Use city name as cache key
+        city_cache_key = city.name
+        
+        # Check if we should fetch a new forecast (hourly rate limiting)
+        should_fetch = self.forecast_cache.should_fetch_forecast(city_cache_key)
+        
+        if should_fetch:
+            # Fetch fresh forecast and cache it
+            try:
+                om = self.fetch_open_meteo(city)
+                details["open_meteo"] = om
+                # Cache the forecast
+                self.forecast_cache.cache_forecast(city_cache_key, om)
+                log.info("forecast fetched and cached for %s", city.name)
+            except Exception as exc:
+                log.warning("Open-Meteo fetch failed for %s: %s", city.name, exc)
+                # Try to use cached forecast as fallback
+                cached_om = self.forecast_cache.get_cached_forecast(city_cache_key)
+                if cached_om:
+                    om = cached_om
+                    details["open_meteo"] = om
+                    log.info("using cached forecast for %s after fetch failure", city.name)
+                else:
+                    om = None
+        else:
+            # Use cached forecast
+            om = self.forecast_cache.get_cached_forecast(city_cache_key)
+            if om:
+                details["open_meteo"] = om
+                log.debug("using cached forecast for %s (within same hour)", city.name)
+            else:
+                # No cache available, need to fetch
+                try:
+                    om = self.fetch_open_meteo(city)
+                    details["open_meteo"] = om
+                    self.forecast_cache.cache_forecast(city_cache_key, om)
+                    log.info("forecast fetched and cached for %s (no prior cache)", city.name)
+                except Exception as exc:
+                    log.warning("Open-Meteo fetch failed for %s: %s", city.name, exc)
+                    om = None
+        
+        # Process the forecast (cached or fresh)
+        if om:
             daily = om.get("daily", {})
             forecast_high = (daily.get("temperature_2m_max") or [None])[0]
             forecast_low = (daily.get("temperature_2m_min") or [None])[0]
@@ -134,8 +180,6 @@ class WeatherCollector:
             if temps:
                 candidates = ([max_so_far] if max_so_far is not None else []) + temps
                 max_so_far = max(candidates)
-        except Exception as exc:
-            log.warning("Open-Meteo fallback failed for %s: %s", city.name, exc)
 
         return WeatherSnapshot(
             city=city,
@@ -166,3 +210,11 @@ class WeatherCollector:
         except Exception:
             guidance["herbie_available"] = 0.0
         return guidance
+
+    def get_cache_stats(self) -> dict[str, Any]:
+        """Get forecast cache statistics for monitoring and debugging.
+        
+        Returns:
+            Cache statistics including cached cities and their ages
+        """
+        return self.forecast_cache.get_cache_stats()
