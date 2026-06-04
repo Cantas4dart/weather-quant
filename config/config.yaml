@@ -20,27 +20,27 @@ polymarket:
   max_yes_price_for_longshot: 0.10
   min_longshot_edge_multiple: 2.0
   min_target_payout_multiple: 10.0
-  near_certainty_min_prob: 0.93
-  near_certainty_min_price: 0.86
+  near_certainty_min_prob: 0.85
+  near_certainty_min_price: 0.78
   near_certainty_max_price: 0.99
 
 strategy:
   micro_longshot:
     enabled: true
-    min_model_probability: 0.045
+    min_model_probability: 0.04
     price_floor: 0.02
-    price_ceiling: 0.10
-    min_expected_value: 0.20
+    price_ceiling: 0.18
+    min_expected_value: 0.15
   late_day_reversal:
     enabled: true
     window_start_hours_before_close: 8
     window_end_hours_before_close: 0
-    min_reversal_score: 0.66
+    min_reversal_score: 0.55
     leader_min_price: 0.45
   near_certainty:
     enabled: true
-    min_model_probability: 0.94
-    min_edge: 0.025
+    min_model_probability: 0.88
+    min_edge: 0.018
   profit_taking:
     enabled: true
     profit_percent_levels: [200, 400, 900]
