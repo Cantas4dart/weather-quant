@@ -75,15 +75,41 @@ class WeatherMarketAnalyzer:
             return []
         out: list[StrategySignal] = []
         for market in markets:
-            if market.side != "YES" or not (cfg["price_floor"] <= market.price <= cfg["price_ceiling"]):
+            # Check price range
+            if market.side != "YES":
+                log.debug(
+                    "micro: %s side=%s (not YES, skip)",
+                    market.bucket_label, market.side
+                )
                 continue
+            
+            if not (cfg["price_floor"] <= market.price <= cfg["price_ceiling"]):
+                log.debug(
+                    "micro: %s price=%.2f not in [%.2f, %.2f] (skip)",
+                    market.bucket_label, market.price,
+                    cfg["price_floor"], cfg["price_ceiling"]
+                )
+                continue
+            
             lower, upper = parse_temperature_bucket(market.bucket_label, market.question)
             if lower is None and upper is None:
+                log.debug("micro: %s bucket parse failed (skip)", market.bucket_label)
                 continue
+            
             prob = self.gp.bucket_probability(forecast, lower, upper)
             ev = prob / max(market.price, 0.001) - 1.0
             payout_multiple = 1.0 / max(market.price, 0.001)
-            if prob >= cfg["min_model_probability"] and ev >= cfg["min_expected_value"] and payout_multiple >= 10:
+            
+            # Check all conditions
+            passes_prob = prob >= cfg["min_model_probability"]
+            passes_ev = ev >= cfg["min_expected_value"]
+            passes_payout = payout_multiple >= 10
+            
+            if passes_prob and passes_ev and passes_payout:
+                log.info(
+                    "micro ✓ %s price=%.2f prob=%.2f%% ev=%.1f%% payout=%.1fx",
+                    market.bucket_label, market.price, prob*100, ev*100, payout_multiple
+                )
                 out.append(
                     self._signal(
                         "MICRO LONGSHOT",
@@ -102,6 +128,12 @@ class WeatherMarketAnalyzer:
                         ],
                     )
                 )
+            else:
+                log.debug(
+                    "micro ✗ %s price=%.2f prob=%.2f%% (need %.2f%%) ev=%.1f%% (need %.1f%%) payout=%.1fx",
+                    market.bucket_label, market.price, prob*100, cfg["min_model_probability"]*100,
+                    ev*100, cfg["min_expected_value"]*100, payout_multiple
+                )
         return out
 
     def _near_certainty(self, markets, snapshot, forecast) -> list[StrategySignal]:
@@ -109,15 +141,36 @@ class WeatherMarketAnalyzer:
         if not cfg["enabled"]:
             return []
         out: list[StrategySignal] = []
+        min_price = self.config["polymarket"]["near_certainty_min_price"]
+        
         for market in markets:
-            if market.side != "YES" or market.price < self.config["polymarket"]["near_certainty_min_price"]:
+            if market.side != "YES":
+                log.debug("certainty: %s side=%s (not YES, skip)", market.bucket_label, market.side)
                 continue
+            
+            if market.price < min_price:
+                log.debug(
+                    "certainty: %s price=%.2f < min=%.2f (skip)",
+                    market.bucket_label, market.price, min_price
+                )
+                continue
+            
             lower, upper = parse_temperature_bucket(market.bucket_label, market.question)
             if lower is None and upper is None:
+                log.debug("certainty: %s bucket parse failed (skip)", market.bucket_label)
                 continue
+            
             prob = self.gp.bucket_probability(forecast, lower, upper)
             edge = prob - market.price
-            if prob >= cfg["min_model_probability"] and edge >= cfg["min_edge"]:
+            
+            passes_prob = prob >= cfg["min_model_probability"]
+            passes_edge = edge >= cfg["min_edge"]
+            
+            if passes_prob and passes_edge:
+                log.info(
+                    "certainty ✓ %s price=%.2f prob=%.2f%% edge=%.3f",
+                    market.bucket_label, market.price, prob*100, edge
+                )
                 out.append(
                     self._signal(
                         "NEAR-CERTAINTY GRIND",
@@ -135,22 +188,55 @@ class WeatherMarketAnalyzer:
                         ],
                     )
                 )
+            else:
+                log.debug(
+                    "certainty ✗ %s price=%.2f prob=%.2f%% (need %.2f%%) edge=%.4f (need %.4f)",
+                    market.bucket_label, market.price, prob*100, cfg["min_model_probability"]*100,
+                    edge, cfg["min_edge"]
+                )
         return out
 
     def _late_reversals(self, markets, snapshot, forecast) -> list[StrategySignal]:
         cfg = self.config["strategy"]["late_day_reversal"]
-        if not cfg["enabled"] or not markets:
+        if not cfg["enabled"]:
+            log.debug("late_reversals: disabled")
             return []
+        if not markets:
+            log.debug("late_reversals: no markets")
+            return []
+        
         leader = max(markets, key=lambda m: m.price)
         hours_to_close = self.reversal.hours_to_close(leader)
         assessment = self.reversal.assess(snapshot, forecast, leader, hours_to_close, cfg["window_start_hours_before_close"])
+        
+        log.debug(
+            "late_reversals: leader=%s price=%.2f hours_to_close=%.1f score=%.3f eligible=%s",
+            leader.bucket_label, leader.price, hours_to_close, assessment.score, assessment.eligible
+        )
+        
         if not assessment.eligible:
+            log.debug(
+                "late_reversals: not eligible (score=%.3f need>=%.3f)",
+                assessment.score, cfg["min_reversal_score"]
+            )
             return []
+        
         no_price = max(1.0 - leader.price, 0.01)
         synthetic = MarketOutcome(**{**leader.__dict__, "side": "NO", "price": no_price})
         ev = assessment.fade_probability / no_price - 1.0
+        
         if ev <= 0:
+            log.debug(
+                "late_reversals ✗ %s fade_prob=%.2f%% no_price=%.2f ev=%.1f (need >0)",
+                leader.bucket_label, assessment.fade_probability*100, no_price, ev
+            )
             return []
+        
+        log.info(
+            "late_reversals ✓ %s fade_prob=%.2f%% score=%.3f ev=%.1f%%",
+            leader.bucket_label, assessment.fade_probability*100, assessment.score, ev*100
+        )
+        
         return [
             self._signal(
                 "FADE THE LEADER",
